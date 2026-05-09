@@ -2,10 +2,13 @@
 
 A voice-and-tone beacon for amateur radio direction finding ("fox hunting"), running on an ESP32-S3-DevKitC-1-N16R8. Audio is generated on the ESP32, fed through a PCM5102 I2S DAC, and keyed into a Baofeng (or similar) handheld radio via a simple wired interface. Speech is either generated on-device with [Flite TTS](https://github.com/pschatzmann/arduino-flite) or pre-rendered from a WAV file you supply.
 
+![Deployed Fox Hunt beacon — tin enclosure connected to a yellow Baofeng HT and a USB power bank](images/systemphoto.jpg)
+
 ## Hardware
 
 - **Board:** ESP32-S3-DevKitC-1-N16R8 (8 MB PSRAM, 16 MB flash)
-- **DAC:** PCM5102 I2S DAC breakout
+- **DAC:** PCM5102 I2S DAC breakout (powered from 5 V — `VIN` on the DAC ↔ `VIN` on the ESP DevKit)
+- **I2S wiring:** `BCK`=GPIO21, `LCK`=GPIO47 (this is the WS / LRCK line — most PCM5102 breakouts label it `LCK`), `DIN`=GPIO38. The DAC's `SCK` pin must be tied to GND so the chip uses its internal PLL.
 - **Audio path:** PCM5102 `L_OUT` → 2.2 kΩ series → cable → radio MIC input. A 10 pF cap from `L_OUT` to GND brings RFI on the audio line down to acceptable levels when the radio transmits.
 - **PTT:** ESP `GPIO2` → cable → radio PTT line, with a 10 pF cap from the PTT line to GND at the ESP end. Without this cap the PTT triggers erratically when the radio is keyed up (RFI bleeding into the GPIO line).
 - **N16R8 caveat:** GPIOs 26–32 (octal SPI flash) and 33–37 (octal SPI PSRAM) are reserved by the module. GPIO35 in particular will trigger an immediate watchdog reset if you try to drive it.
@@ -18,10 +21,12 @@ flowchart LR
     DAC["PCM5102<br/>DAC"]
     RADIO["Baofeng radio<br/>(MIC + PTT)"]
 
-    ESP -->|"I2S<br/>BCK=GPIO21<br/>WS=GPIO47<br/>DIN=GPIO38<br/>3.3 V + GND"| DAC
+    ESP -->|"I2S + power<br/>BCK=GPIO21<br/>LCK=GPIO47<br/>DIN=GPIO38<br/>VIN (5 V) + GND<br/>SCK → GND"| DAC
     DAC -->|"L_OUT → 2.2 kΩ → MIC<br/>L_OUT → 10 pF → GND<br/>(audio RFI suppression)"| RADIO
     ESP -->|"GPIO2 → PTT<br/>PTT line → 10 pF → ESP GND<br/>(PTT RFI suppression)"| RADIO
 ```
+
+![Annotated wiring inside the enclosure — ESP32-S3, PCM5102 board, 2.2 kΩ audio resistor, 10 pF RFI bypass caps on audio and PTT lines, and 1N4148 protection diode on the PTT line](images/wiringphoto.jpg)
 
 ## Build & flash
 
@@ -130,3 +135,7 @@ CLAUDE.md              Full architecture notes (for AI-assisted edits)
 - [arduino-audio-tools](https://github.com/pschatzmann/arduino-audio-tools) — I2S streaming
 - [arduino-flite](https://github.com/pschatzmann/arduino-flite) — Flite TTS (cmu_us_slt voice, ~3.2 MB)
 - Adafruit NeoPixel — onboard RGB LED
+
+## Credits
+
+Concept originator and co-developer: **Pat Gagnon — VE1PAT**.
